@@ -18,23 +18,16 @@
  * along with this Library. If not, see
  * <http://www.gnu.org/licenses/>.
  */
-/*
-D/C ~ D5
-CS ~ D6
-BUSY ~ D7
-BS ~ D8
-MOSI ~ D11
-MISO ~ D12
-CLK ~ D13
-RST ~ D2
-*/
-
 
 #include <SPI.h>
 #include <ssd1606.h>
 
-//EPD_SSD1606 Eink(int8_t _CS, int8_t _DC, int8_t _BSY, int8_t _RST);
-EPD_SSD1606 Eink(6, 5, 7, 2);
+/*
+MOSI ~ D11
+MISO ~ D12
+CLK ~ D13
+*/
+EPD_SSD1606 Eink(E_CS, E_DC, E_BSY, E_RST);
 
 void setup()
 {

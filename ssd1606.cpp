@@ -326,7 +326,7 @@ void EPD_SSD1606::sleep(bool state)
 
 /**
  * @brief  Send to display 4 pixels
- * @param  color: data color for 4 pixels
+ * @param  color: data and color whith 4 pixels
  * @retval None
  */
 void EPD_SSD1606::drawPixel(uint8_t color)
@@ -335,17 +335,56 @@ void EPD_SSD1606::drawPixel(uint8_t color)
 }
 
 /**
+ * @brief  Draw pixel to display at position
+ * @param  x: X position (0-171)
+ * @param  y: Y position (0-71)
+ * @param  color: data and color whith 1 pixel
+ * @retval None
+ */
+void EPD_SSD1606::drawPixel(int16_t x, int16_t y, uint8_t color)
+{
+  uint8_t sector = y/4;
+  uint8_t pixelPosition = y%4;
+  
+  setAddrWindow(x, sector, x, sector+1);
+  
+  switch(pixelPosition) {
+    case 0: writeData(color | 0x3F); break;
+    case 1: writeData(color | 0xCF); break;
+    case 2: writeData(color | 0xF3); break;
+    case 3: writeData(color | 0xFC); break;
+  }
+}
+
+/**
  * @brief  Draw horizontal line
  * @param  x: X position where line start
  * @param  y: Y position where line start
- * @param  h: lenght of line
+ * @param  w: lenght of line
  * @retval None
  */
 void EPD_SSD1606::drawFastHLine(int16_t x, int16_t y, int16_t w, uint8_t color)
 {
   setAddrWindow(x, y, x+w, y);
   
-  for(int16_t index = 0; index < w; index++) {
+  for(uint8_t index = 0; index < w; index++) {
+    /* Prepare the register to write data on the RAM */
+    writeData(color);
+  }
+}
+
+/**
+ * @brief  Draw vertical line
+ * @param  x: X position where line start
+ * @param  y: Y position where line start (0-17)
+ * @param  h: lenght of line in sectors of 4 pixel each
+ * @retval None
+ */
+void EPD_SSD1606::drawFastVLine(int16_t x, int16_t y, int16_t h, uint8_t color)
+{
+  setAddrWindow(x, y, x, y+h);
+  
+  for(uint8_t index = 0; index < h; index++) {
     /* Prepare the register to write data on the RAM */
     writeData(color);
   }
@@ -355,16 +394,33 @@ void EPD_SSD1606::drawFastHLine(int16_t x, int16_t y, int16_t w, uint8_t color)
  * @brief  Draw vertical line
  * @param  x: X position where line start
  * @param  y: Y position where line start
- * @param  w: lenght of line
+ * @param  h: lenght of line (0-71)
  * @retval None
  */
-void EPD_SSD1606::drawFastVLine(int16_t x, int16_t y, int16_t h, uint8_t color)
+void EPD_SSD1606::drawVLine(int16_t x, int16_t y, int16_t h, uint8_t color)
 {
-  setAddrWindow(x, y, x, y+h);
+  uint8_t sectors=0;
+  uint8_t pixelsLeft=0;
   
-  for(int16_t index = 0; index < h; index++) {
+  pixelsLeft = h%4;
+  sectors = (h - pixelsLeft)>>2; // ... same as '/4' but sometimes it more effective
+  if(pixelsLeft) { // yep, even single pixel consume whole sector :/
+    setAddrWindow(x, y, x, y+sectors+1);
+  } else {
+    setAddrWindow(x, y, x, y+sectors);
+  }
+  
+  for(uint8_t index = 0; index < sectors; index++) {
     /* Prepare the register to write data on the RAM */
     writeData(color);
+  }
+  
+  // fill sector whith 1 to 3 pixels
+  switch(pixelsLeft) {
+    case 1: writeData(color | 0x3F); break;
+    case 2: writeData(color | 0x0F); break;
+    case 3: writeData(color | 0x03); break;
+    default: break; // no pixels left
   }
 }
 
@@ -400,7 +456,7 @@ void EPD_SSD1606::fillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint8_t c
   /* Set the rectangle */
   setAddrWindow(x, y, x + w, y + h);
   
-  for(int16_t index = 0; index < w*h; index++) {
+  for(int16_t index = 0; index < w*(h*4); index++) {
     writeData(color);
   }
 }
