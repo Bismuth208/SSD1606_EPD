@@ -72,6 +72,23 @@
 #define USE_FAST_PINIO
 #endif
 
+
+#if defined (USE_FAST_PINIO)
+  #define SET_CS_LOW  *csport &= ~cspinmask;
+  #define SET_CS_HI   *csport |= cspinmask;
+  #define SET_DC_HI   *dcport |=  dcpinmask;
+  #define SET_DC_LOW  *dcport &= ~dcpinmask;
+#else
+  #define SET_CS_LOW  digitalWrite(_cs, LOW);
+  #define SET_CS_HI   digitalWrite(_cs, HIGH);
+  #define SET_DC_HI   digitalWrite(_dc, HIGH);
+  #define SET_DC_LOW  digitalWrite(_dc, LOW);
+#endif
+
+#define ENABLE_CMD    SET_DC_LOW SET_CS_LOW
+#define ENABLE_DATA   SET_DC_HI  SET_CS_LOW
+#define DISABLE_DATA  SET_CS_HI
+
 #define SSD1606_WIDTH  172
 #define SSD1606_HEIGHT 18
 
@@ -170,13 +187,9 @@ typedef enum {
 class EPD_SSD1606 : public Print {
   
 public:
-  
-  EPD_SSD1606(int8_t cs, int8_t dc, int8_t bsy);
-  EPD_SSD1606(int8_t cs, int8_t dc, int8_t bsy, int8_t rst);
-  EPD_SSD1606(int8_t cs, int8_t dc, int8_t bsy,
-              int8_t mosi, int8_t sclk, int8_t miso);
-  EPD_SSD1606(int8_t cs, int8_t dc, int8_t bsy, int8_t rst,
-              int8_t mosi, int8_t sclk, int8_t miso);
+  EPD_SSD1606(int8_t cs, int8_t dc, int8_t bsy, int8_t rst = -1);
+  EPD_SSD1606(int8_t cs, int8_t dc, int8_t bsy, int8_t mosi, int8_t sclk,
+                                                int8_t miso, int8_t rst = -1);
   
   void begin(void);
   
@@ -196,7 +209,7 @@ public:
   void fillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint8_t color);
   
   void drawImage(uint16_t Xpos, uint16_t Ypos, uint16_t Xsize, uint16_t Ysize, uint8_t *pData);
-  void displayChar(uint16_t Xpos, uint16_t Ypos, uint8_t Ascii);
+  void drawChar(uint16_t Xpos, uint16_t Ypos, uint8_t c);
   void displayStringAt(uint16_t Xpos, uint16_t Ypos, uint8_t *text, textAlign_t align);
   void displayStringAtLine(uint16_t Line, uint8_t *ptr);
   
@@ -220,7 +233,6 @@ private:
   font_t *pFont;
   
   void drawImageInt(uint16_t Xpos, uint16_t Ypos, uint16_t Xsize, uint16_t Ysize, uint8_t *pData);
-  void drawChar(uint16_t Xpos, uint16_t Ypos, const uint8_t *c);
   
   void closeChargePump(void);
   

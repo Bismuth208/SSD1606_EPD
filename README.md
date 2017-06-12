@@ -12,7 +12,7 @@ As Y ordinate have organisation in bytes, then 18 = 72/4;
 At current moment no framebuffer avaliable!
 That mean what draw graphics primitives are almost imposible...
 
-Arduino's' *.print* fully supported!
+Arduino's *.print(...)* fully supported!
 Deep sleep mode also avaliable!
 
 EPD connection: SPI;

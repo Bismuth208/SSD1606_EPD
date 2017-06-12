@@ -31,14 +31,14 @@ EPD_SSD1606 Eink(E_CS, E_DC, E_BSY, E_RST);
 
 void setup()
 {
-  //BS LOW for 4 line SPI
+  // set BS to LOW for 4 line SPI (line can be attached to GND)
   pinMode(8,OUTPUT);
   digitalWrite(8, LOW);
   
   Eink.begin();
-  Eink.setFont(&font5x8);
   Eink.fillScreen(COLOR_WHITE); // clear the screen
 
+  Eink.setFont(&font5x8);
   Eink.setCursor(0, 0);
   Eink.println("Hello World!");
   Eink.println(1234.56);

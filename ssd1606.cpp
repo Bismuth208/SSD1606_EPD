@@ -73,36 +73,40 @@
 #ifdef SPI_HAS_TRANSACTION
 static inline void spi_begin(void) __attribute__((always_inline));
 static inline void spi_begin(void) {
-#if defined (ARDUINO_ARCH_ARC32)
+ #if defined (ARDUINO_ARCH_ARC32)
   // max speed!
   SPI.beginTransaction(SPISettings(16000000, MSBFIRST, SPI_MODE0));
-#else
+ #else
   // max speed!
   SPI.beginTransaction(SPISettings(24000000, MSBFIRST, SPI_MODE0));
-#endif
+ #endif
 }
 static inline void spi_end(void) __attribute__((always_inline));
 static inline void spi_end(void) {
   SPI.endTransaction();
 }
 #else
-#define spi_begin()
-#define spi_end()
+ #define spi_begin()
+ #define spi_end()
 #endif
 
 // -------------------------------------------------------------------------- //
 
 static const uint8_t init_commands[] PROGMEM = {
   2, SSD1606_DPSLP, 0x00,         // exit deep sleep mode
+#if 0 // unneed as defauilt value
   2, SSD1606_DEMDS, DE_YXII,      // data enter mode
+#endif
   2, SSD1606_BFS, 0x1F,           // booster feedback used, in page 37
   2, SSD1606_WVCOMREG, 0xA0,      // vcom
   2, SSD1606_VBDSET, 0x63,        // select border waveform
   2, SSD1606_DUPCTRL1, 0x03,      // disable RAM bypass and set GS transition to GSA = GS0 and GSB = GS3
+#if 0 // unneed as setAddrWindow do it as well
   3, SSD1606_RASTXSE, 0x00, 0x11, // RAM x address: start at 00h; end at 11h(17)->72 (0x48?)
   3, SSD1606_RASTYSE, 0x00, 0xAB, // RAM y address: start at 00h; start at ABh(171)->172
   2, SSD1606_RASTXAC, 0x00,       // set RAM x address count to 0;
   2, SSD1606_RASTYAC, 0x00,       // set RAM y address count to 0;
+#endif
   
   91, SSD1606_WLUTREG,            // write data to LUT register
   0x00,0x00,0x00,0x55,0x00,0x00,0x55,0x55,0x00,
@@ -119,23 +123,7 @@ static const uint8_t init_commands[] PROGMEM = {
 };
 
 // -------------------------------------------------------------------------- //
-
-// Constructor when using hardware SPI and reset connected to MCU reset.
-// Faster, but must use SPI pins
-// specific to each board type (e.g. 11,13 for Uno, 51,52 for Mega, etc.)
-EPD_SSD1606::EPD_SSD1606(int8_t cs, int8_t dc, int8_t bsy)
-{
-  _cs   = cs;
-  _dc   = dc;
-  _bsy  = bsy;
-  _rst  = -1;
-  hwSPI = true;
-  
-  cursor_x = cursor_y =0;
-  wrap = true;
-}
-
-// Constructor when using hardware SPI and reset connected to some of pins.
+// Constructor when using hardware SPI and reset connected to some of pins or to MCU reset.
 // Faster, but must use SPI pins
 // specific to each board type (e.g. 11,13 for Uno, 51,52 for Mega, etc.)
 EPD_SSD1606::EPD_SSD1606(int8_t cs, int8_t dc, int8_t bsy, int8_t rst)
@@ -150,27 +138,10 @@ EPD_SSD1606::EPD_SSD1606(int8_t cs, int8_t dc, int8_t bsy, int8_t rst)
   wrap = true;
 }
 
-// Constructor when using software SPI selected.
-// reset connected to MCU reset
-EPD_SSD1606::EPD_SSD1606(int8_t cs, int8_t dc, int8_t bsy,
-                                      int8_t mosi, int8_t sclk, int8_t miso)
-{
-  _cs   = cs;
-  _dc   = dc;
-  _bsy  = bsy;
-  _rst  = -1;
-  _mosi = mosi;
-  _miso = miso;
-  _sclk = sclk;
-  hwSPI = false;
-  
-  cursor_x = cursor_y =0;
-  wrap = true;
-}
-
 // Constructor when using software SPI.  All output pins are configurable.
-EPD_SSD1606::EPD_SSD1606(int8_t cs, int8_t dc, int8_t bsy, int8_t rst,
-                                      int8_t mosi, int8_t sclk, int8_t miso)
+// reset connected to MCU reset
+EPD_SSD1606::EPD_SSD1606(int8_t cs, int8_t dc, int8_t bsy, int8_t mosi,
+                                           int8_t sclk, int8_t miso, int8_t rst)
 {
   _cs   = cs;
   _dc   = dc;
@@ -298,9 +269,12 @@ void EPD_SSD1606::closeChargePump(void)
 void EPD_SSD1606::fillScreen(uint8_t color)
 {
   setAddrWindow(0, 0, 171, 17);
+  
+  ENABLE_DATA;
   for(uint16_t i=0; i<SSD1606_SCREEN_SIZE; i++) {
-    writeData(color);
+    spiwrite(color);
   }
+  DISABLE_DATA;
 }
 
 /**
@@ -367,10 +341,12 @@ void EPD_SSD1606::drawFastHLine(int16_t x, int16_t y, int16_t w, uint8_t color)
 {
   setAddrWindow(x, y, x+w, y);
   
+  ENABLE_DATA;
   for(uint8_t index = 0; index < w; index++) {
     /* Prepare the register to write data on the RAM */
-    writeData(color);
+    spiwrite(color);
   }
+  DISABLE_DATA;
 }
 
 /**
@@ -384,10 +360,12 @@ void EPD_SSD1606::drawFastVLine(int16_t x, int16_t y, int16_t h, uint8_t color)
 {
   setAddrWindow(x, y, x, y+h);
   
+  ENABLE_DATA;
   for(uint8_t index = 0; index < h; index++) {
     /* Prepare the register to write data on the RAM */
-    writeData(color);
+    spiwrite(color);
   }
+  DISABLE_DATA;
 }
 
 /**
@@ -409,19 +387,21 @@ void EPD_SSD1606::drawVLine(int16_t x, int16_t y, int16_t h, uint8_t color)
   } else {
     setAddrWindow(x, y, x, y+sectors);
   }
-  
+
+  ENABLE_DATA;
   for(uint8_t index = 0; index < sectors; index++) {
     /* Prepare the register to write data on the RAM */
-    writeData(color);
+    spiwrite(color);
   }
   
   // fill sector whith 1 to 3 pixels
   switch(pixelsLeft) {
-    case 1: writeData(color | 0x3F); break;
-    case 2: writeData(color | 0x0F); break;
-    case 3: writeData(color | 0x03); break;
+    case 1: spiwrite(color | 0x3F); break;
+    case 2: spiwrite(color | 0x0F); break;
+    case 3: spiwrite(color | 0x03); break;
     default: break; // no pixels left
   }
+  DISABLE_DATA;
 }
 
 /**
@@ -456,9 +436,13 @@ void EPD_SSD1606::fillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint8_t c
   /* Set the rectangle */
   setAddrWindow(x, y, x + w, y + h);
   
-  for(int16_t index = 0; index < w*(h*4); index++) {
-    writeData(color);
+  uint16_t dataSize = w*(h*4);
+  
+  ENABLE_DATA;
+  for(int16_t index = 0; index < dataSize; index++) {
+    spiwrite(color);
   }
+  DISABLE_DATA;
 }
 
 /**
@@ -483,6 +467,7 @@ void EPD_SSD1606::setBitDepth(uint8_t depth)
  * @param  y1: Y end    address   0~171
  * @retval None
  */
+#if 0
 void EPD_SSD1606::setAddrWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1)
 {
   writeCommand(SSD1606_RASTXSE); // set RAM x address start/end
@@ -498,6 +483,27 @@ void EPD_SSD1606::setAddrWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t 
   
   writeCommand(SSD1606_RAMWR);
 }
+#else
+// reque little more ROM space but much more faster
+void EPD_SSD1606::setAddrWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1)
+{
+  SET_CS_LOW;
+  SET_DC_LOW;  spiwrite(SSD1606_RASTXSE); // set RAM x address start/end
+  SET_DC_HI;   spiwrite(y0); spiwrite(y1);
+  
+  SET_DC_LOW;  spiwrite(SSD1606_RASTYSE); // set RAM y address start/end
+  SET_DC_HI;   spiwrite(x0); spiwrite(x1);
+  
+  SET_DC_LOW;  spiwrite(SSD1606_RASTXAC); // set RAM x address count to x0;
+  SET_DC_HI;   spiwrite(y0);
+  
+  SET_DC_LOW;  spiwrite(SSD1606_RASTYAC); // set RAM y address count to y0;
+  SET_DC_HI;   spiwrite(x0);
+  
+  SET_DC_LOW;  spiwrite(SSD1606_RAMWR);
+  DISABLE_DATA;
+}
+#endif
 
 // ----------------------------------------------------------------------------//
 // ----------------------------------------------------------------------------//
@@ -506,39 +512,40 @@ size_t EPD_SSD1606::write(uint8_t c) {
 #else
   void EPD_SSD1606::write(uint8_t c) {
 #endif
+    uint16_t fontW, fontH;
+    fontW = pFont->Width;
+    fontH = pFont->Height;
     
+    switch(c) {
+      case '\n': {
+        cursor_x  = 0;
+        cursor_y += fontH;
+      } break;
+        
+      case '\r': {
+        cursor_x  = 0;
+      } break;
+        
+      case '\b': {
+        if((cursor_x - fontW) > 0) {
+          cursor_x  -= fontW;
+        }
+      } break;
 #if 0
-    if(c == '\n') {
-      cursor_y += textsize*8;
-      cursor_x  = 0;
-    } else if(c == '\r') {
-      // skip em
-    } else {
-      if(wrap && ((cursor_x + textsize * 6) >= _width)) { // Heading off edge?
-        cursor_x  = 0;            // Reset x to zero
-        cursor_y += textsize * 8; // Advance y one line
-      }
-      drawChar(cursor_x, cursor_y, c, textcolor, textbgcolor, textsize);
-      cursor_x += textsize * 6;
-    }
+      case '\f': {
+        fillScreen(COLOR_WHITE);
+      } break;
 #endif
-    
-#if 1
-    if(c == '\n') {
-      cursor_y += pFont->Height;
-      cursor_x  = 0;
-    } else if(c == '\r') {
-      // skip em
-    } else {
-      if(wrap && ((cursor_x + pFont->Width) >= SSD1606_WIDTH)) { // Heading off edge?
-        cursor_x  = 0;            // Reset x to zero
-        cursor_y += pFont->Height; // Advance y one line
-      }
-      displayChar(cursor_x, cursor_y, c);
-      cursor_x += pFont->Width;
+        
+      default: {
+        if(wrap && ((cursor_x + fontW) >= SSD1606_WIDTH)) { // Heading off edge?
+          cursor_x  = 0;             // Reset x to zero
+          cursor_y += fontH; // Advance y one line
+        }
+        drawChar(cursor_x, cursor_y, c);
+        cursor_x += fontW;
+      } break;
     }
-#endif
-    
 #if ARDUINO >= 100
     return 1;
 #endif
@@ -567,37 +574,25 @@ void EPD_SSD1606::setFont(font_t *pFonts)
 
 /**
  * @brief  Displays one character.
- * @param  Xpos: start column address.
- * @param  Ypos: the Line where to display the character shape.
- * @param  Ascii: character ascii code, must be between 0x20 and 0x7E.
- * @retval None
- */
-void EPD_SSD1606::displayChar(uint16_t Xpos, uint16_t Ypos, uint8_t Ascii)
-{
-  Ascii -= 32;
-  
-  drawChar(Xpos, Ypos, &pFont->table[Ascii * ((pFont->Height) * (pFont->Width))]);
-}
-
-/**
- * @brief  Draws a character on EPD.
  * @param  Xpos: specifies the X position, can be a value from 0 to 171
  * @param  Ypos: specifies the Y position, can be a value from 0 to 17
- * @param  c: pointer to the character data
+ * @param  c:    character ascii code, must be between 0x20 and 0x7E.
  * @retval None
  */
-void EPD_SSD1606::drawChar(uint16_t Xpos, uint16_t Ypos, const uint8_t *c)
+void EPD_SSD1606::drawChar(uint16_t Xpos, uint16_t Ypos, uint8_t c)
 {
   uint16_t height = pFont->Height;
   uint16_t width = pFont->Width;
-  uint32_t data_length = (height * width);
+  int16_t data_length = height * width;
+  const uint8_t *pChar = &pFont->table[(c-32) * data_length]; // -32 made to fit range
   
-  /* Set the Character display window */
   setAddrWindow(Xpos, Ypos, (Xpos + width - 1), (Ypos + height - 1));
   
-  for(uint32_t index = 0; index < data_length; index++) {
-    writeData(pgm_read_byte(c + index));
+  ENABLE_DATA;
+  while(data_length--) {
+    spiwrite(pgm_read_byte(pChar++));
   }
+  DISABLE_DATA;
 }
 
 /**
@@ -652,7 +647,7 @@ void EPD_SSD1606::displayStringAt(uint16_t Xpos, uint16_t Ypos, uint8_t *text, t
   while ((*text != 0) & (((width() - (i*pFont->Width)) & 0xFFFF) >= pFont->Width))
   {
     /* Display one character on EPD */
-    displayChar(refcolumn, Ypos, *text);
+    drawChar(refcolumn, Ypos, *text);
     /* Decrement the column position by 16 */
     refcolumn += pFont->Width;
     /* Point on the next character */
@@ -732,15 +727,15 @@ void EPD_SSD1606::drawImageInt(uint16_t Xpos, uint16_t Ypos, uint16_t Xsize, uin
           data_res = pixels_4_grey[0] << 6 | pixels_4_grey[1] << 4 | pixels_4_grey[2] << 2 | pixels_4_grey[3] << 0;
           
           /* Send the data to the EPD's RAM through SPI */
-          writeData(data_res);
+          spiwrite(data_res);
         }
       }
       else
       {
         /* 1 byte read from xbm files is equivalent to 8 pixels in the
          other words 2 bytes to be transferred */
-        writeData(0xFF);
-        writeData(0xFF);
+        spiwrite(0xFF);
+        spiwrite(0xFF);
       }
     }
   }
@@ -783,15 +778,15 @@ void EPD_SSD1606::drawImageInt(uint16_t Xpos, uint16_t Ypos, uint16_t Xsize, uin
             data_res = pixels_4_grey[0] << 6 | pixels_4_grey[1] << 4 | pixels_4_grey[2] << 2 | pixels_4_grey[3] << 0;
             
             /* Send the data to the EPD's RAM through SPI */
-            writeData(data_res);
+            spiwrite(data_res);
           }
         }
         else if (pixels_4 == 0)
         {
           /* One byte read from xbm files is equivalent to 8 pixels in the
            other words Two bytes to be transferred */
-          writeData(0xFF);
-          writeData(0xFF);
+          spiwrite(0xFF);
+          spiwrite(0xFF);
         }
       }
       
@@ -823,12 +818,12 @@ void EPD_SSD1606::drawImageInt(uint16_t Xpos, uint16_t Ypos, uint16_t Xsize, uin
           data_res = pixels_4_grey[0] << 6 | pixels_4_grey[1] << 4 | pixels_4_grey[2] << 2 | pixels_4_grey[3] << 0;
           
           /* Send the data to the EPD's RAM through SPI */
-          writeData(data_res);
+          spiwrite(data_res);
         }
         else if (pixels_4 == 0xf0)
         {
           /* One byte to be transferred */
-          writeData(0xFF);
+          spiwrite(0xFF);
         }
       }
     }
@@ -849,7 +844,9 @@ void EPD_SSD1606::drawImage(uint16_t Xpos, uint16_t Ypos, uint16_t Xsize, uint16
   /* Set display window */
   setAddrWindow(Xpos, Ypos, (Xpos+Ysize-1), (Ypos+(Xsize/4)-1));
   
+  ENABLE_DATA;
   drawImageInt(Xpos, Ypos, Xsize, Ysize, pData);
+  DISABLE_DATA;
 }
 
 // ----------------------------------------------------------------------------//
@@ -864,15 +861,15 @@ void EPD_SSD1606::spiwrite(uint8_t c)
 {
   if (hwSPI) {
 #if defined (__AVR__)
-#ifndef SPI_HAS_TRANSACTION
+ #ifndef SPI_HAS_TRANSACTION
     uint8_t backupSPCR = SPCR;
     SPCR = mySPCR;
-#endif
+ #endif
     SPDR = c;
     while(!(SPSR & _BV(SPIF)));
-#ifndef SPI_HAS_TRANSACTION
+ #ifndef SPI_HAS_TRANSACTION
     SPCR = backupSPCR;
-#endif
+ #endif
 #else
     SPI.transfer(c);
 #endif
@@ -913,22 +910,9 @@ void EPD_SSD1606::spiwrite(uint8_t c)
  */
 void EPD_SSD1606::writeCommand(uint8_t c)
 {
-#if defined (USE_FAST_PINIO)
-  *dcport &= ~dcpinmask;
-  *csport &= ~cspinmask;
-#else
-  digitalWrite(_dc, LOW);
-  digitalWrite(_sclk, LOW);
-  digitalWrite(_cs, LOW);
-#endif
-  
+  ENABLE_CMD;
   spiwrite(c);
-  
-#if defined (USE_FAST_PINIO)
-  *csport |= cspinmask;
-#else
-  digitalWrite(_cs, HIGH);
-#endif
+  DISABLE_DATA;
 }
 
 /**
@@ -938,21 +922,9 @@ void EPD_SSD1606::writeCommand(uint8_t c)
  */
 void EPD_SSD1606::writeData(uint8_t c)
 {
-#if defined (USE_FAST_PINIO)
-  *dcport |=  dcpinmask;
-  *csport &= ~cspinmask;
-#else
-  digitalWrite(_dc, HIGH);
-  digitalWrite(_cs, LOW);
-#endif
-  
+  ENABLE_DATA;
   spiwrite(c);
-  
-#if defined (USE_FAST_PINIO)
-  *csport |= cspinmask;
-#else
-  digitalWrite(_cs, HIGH);
-#endif
+  DISABLE_DATA;
 }
 
 /**
@@ -963,13 +935,17 @@ void EPD_SSD1606::writeData(uint8_t c)
 void EPD_SSD1606::commandList(const uint8_t *addr)
 {
   int8_t count;
+  SET_CS_LOW;
   while (1) {
-    count = pgm_read_byte(addr++);        // Number of commands to follow
-    if (count-- == 0) break;              // For each command...
-    writeCommand(pgm_read_byte(addr++));  // Read, issue command
-    while (count--) {                     // For each argument...
-      writeData(pgm_read_byte(addr++));   // Read, issue argument
+    count = pgm_read_byte(addr++);       // Number of commands to follow
+    if (count-- == 0) break;             // For each command...
+    SET_DC_LOW;
+    spiwrite(pgm_read_byte(addr++));     // Read, issue command
+    SET_DC_HI;
+    while (count--) {                    // For each argument...
+      spiwrite(pgm_read_byte(addr++));   // Read, issue argument
     }
   }
+  DISABLE_DATA;
 }
 
