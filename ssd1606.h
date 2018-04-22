@@ -171,7 +171,7 @@
 //#define COLOR_BLACK       0x00
 
 
-#define EPD_DEFAULT_FONT         font5x8
+#define EPD_DEFAULT_FONT    font7x12 // font5x8
 
 
 /**
@@ -195,27 +195,34 @@ public:
   
   void fillScreen(uint8_t color);
   void display(void);
+  void display(void(*pUserWaitFunc)(void));
+  void closeChargePump(void);
+  void closeChargePump(void(*pUserWaitFunc)(void));
   void setBitDepth(uint8_t depth);
-  void setAddrWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1);
+  void setAddrWindow(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1);
   void sleep(bool state);
   
   
   void drawPixel(uint8_t color);
-  void drawPixel(int16_t x, int16_t y, uint8_t color);
-  void drawVLine(int16_t x, int16_t y, int16_t h, uint8_t color);
-  void drawFastVLine(int16_t x, int16_t y, int16_t h, uint8_t color);
-  void drawFastHLine(int16_t x, int16_t y, int16_t w, uint8_t color);
-  void drawRect(int16_t x, int16_t y, int16_t w, int16_t h, uint8_t color);
-  void fillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint8_t color);
+  void drawPixel(uint8_t x, uint8_t y, uint8_t color);
+  void drawVLine(uint8_t x, uint8_t y, uint8_t h, uint8_t color);
+  void drawHLine(uint8_t x, uint8_t y, uint8_t w, uint8_t color);
+  void drawFastVLine(uint8_t x, uint8_t y, uint8_t h, uint8_t color);
+  void drawFastHLine(uint8_t x, uint8_t y, uint8_t w, uint8_t color);
+  void drawRect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, uint8_t color);
+  void fillRect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, uint8_t color);
   
-  void drawImage(uint16_t Xpos, uint16_t Ypos, uint16_t Xsize, uint16_t Ysize, uint8_t *pData);
-  void drawChar(uint16_t Xpos, uint16_t Ypos, uint8_t c);
-  void displayStringAt(uint16_t Xpos, uint16_t Ypos, uint8_t *text, textAlign_t align);
-  void displayStringAtLine(uint16_t Line, uint8_t *ptr);
+  void drawImage(uint8_t Xpos, uint8_t Ypos, uint8_t Xsize, uint8_t Ysize, uint8_t *pData);
+  void drawChar(uint8_t Xpos, uint8_t Ypos, uint8_t c);
+  void printAt(uint8_t x, uint8_t y, const char *str);
+  void printAt(uint8_t x, uint8_t y, const String &str);
+  void printAt(uint8_t x, uint8_t y, const __FlashStringHelper *str);
+  void displayStringAt(uint8_t Xpos, uint8_t Ypos, uint8_t *text, textAlign_t align);
+  void displayStringAtLine(uint8_t Line, uint8_t *ptr);
   
-  void setFont(font_t *pFonts);
+  void setFont(const font_t *pFonts);
   void setTextWrap(bool w);
-  void setCursor(int16_t x, int16_t y);
+  void setCursor(uint8_t x, uint8_t y);
   
 #if ARDUINO >= 100
   virtual size_t write(uint8_t);
@@ -223,18 +230,16 @@ public:
   virtual void   write(uint8_t);
 #endif
   
-  uint16_t width() { return SSD1606_WIDTH;}
-  uint16_t height() {return SSD1606_HEIGHT;}
+  uint8_t width() { return SSD1606_WIDTH;}
+  uint8_t height() {return SSD1606_HEIGHT;}
   
 private:
   
-  int16_t cursor_x, cursor_y;
+  uint8_t cursor_x, cursor_y;
   bool wrap;
-  font_t *pFont;
+  const font_t *pFont;
   
-  void drawImageInt(uint16_t Xpos, uint16_t Ypos, uint16_t Xsize, uint16_t Ysize, uint8_t *pData);
-  
-  void closeChargePump(void);
+  void drawImageInt(uint8_t Xpos, uint8_t Ypos, uint8_t Xsize, uint8_t Ysize, uint8_t *pData);
   
   void spiwrite(uint8_t);
   void writeCommand(uint8_t c);

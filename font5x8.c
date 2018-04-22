@@ -965,7 +965,7 @@ const uint8_t font5x8_Table[] PROGMEM =
 	            //      
 };
 
-font_t font5x8 = {
+const font_t font5x8 = {
   font5x8_Table,
   5, /* Width */ //(5 lines)
   2, /* Height */  //(2 bytes/8pixels)

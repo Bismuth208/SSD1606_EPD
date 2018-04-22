@@ -108,8 +108,8 @@ const uint8_t font7x12_Table[] PROGMEM =
 	0xff, 0x3f, 0x3f, //   #    
 	0xfc, 0xcf, 0xff, //   #    
 	0xff, 0xff, 0xff, //  # # # 
-                          //  #  #  
-                          //   ## # 
+                    //  #  #
+                    //   ## #
 	                  //        
 	                  //        
 	                  //        
@@ -122,9 +122,9 @@ const uint8_t font7x12_Table[] PROGMEM =
 	0xff, 0xff, 0xff, //    #   
 	0xff, 0xff, 0xff, //        
 	0xff, 0xff, 0xff, //        
-                          //        
+                    //
 	                  //        
-                          //        
+                    //
 	                  //        
 	                  //        
 
@@ -138,7 +138,7 @@ const uint8_t font7x12_Table[] PROGMEM =
 	0xff, 0xff, 0xff, //    #   
 	                  //    #   
 	                  //    #   
-                          //     #  
+                    //     #
 	                  //     #  
 	                  //        
 
@@ -152,8 +152,8 @@ const uint8_t font7x12_Table[] PROGMEM =
 	0xff, 0xff, 0xff, //    #   
 	                  //    #   
 	                  //    #   
-                          //   #    
-                          //   #    
+                    //   #
+                    //   #
 	                  //        
 
 	// @231 '*' (7 lines)
@@ -277,8 +277,8 @@ const uint8_t font7x12_Table[] PROGMEM =
 	0xfc, 0x3f, 0x0f, //    #   
 	0xff, 0xff, 0xff, //   #    
 	                  //  #   # 
-                          //  ##### 
-                          //        
+                    //  #####
+                    //
 	                  //        
 	                  //        
 
@@ -349,7 +349,7 @@ const uint8_t font7x12_Table[] PROGMEM =
 	                  //    #   
 	                  //    #   
 	                  //        
-                          //        
+                    //
 	                  //        
 
 	// @525 '8' (7 lines)
@@ -385,7 +385,7 @@ const uint8_t font7x12_Table[] PROGMEM =
 	0xff, 0xff, 0xff, //        
 	0xfc, 0x3c, 0x3f, //        
 	0xfc, 0x3c, 0x3f, //   ##   
-        0xff, 0xff, 0xff, //   ##   
+  0xff, 0xff, 0xff, //   ##   
 	0xff, 0xff, 0xff, //        
 	0xff, 0xff, 0xff, //        
 	                  //   ##   
@@ -1347,7 +1347,7 @@ const uint8_t font7x12_Table[] PROGMEM =
 	                  //        
 };
 
-font_t font7x12 = {
+const font_t font7x12 = {
   font7x12_Table,
   7, /* Width */    // (7 lines)
   3, /* Height */   // (3 bytes/12pixels)

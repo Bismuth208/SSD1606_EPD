@@ -230,10 +230,17 @@ void EPD_SSD1606::display(void)
   writeCommand(SSD1606_DUPCTRL2);
   writeData(0xC4);
   writeCommand(SSD1606_ADPUPDSC);
+}
+
+void EPD_SSD1606::display(void(*pUserWaitFunc)(void))
+{
+  // from mbed
+  writeCommand(SSD1606_DUPCTRL2);
+  writeData(0xC4);
+  writeCommand(SSD1606_ADPUPDSC);
   
   /* Poll on the BUSY signal and wait for the EPD to be ready */
-  while(digitalRead(_bsy) == LOW);
-  closeChargePump();
+  while(digitalRead(_bsy) == LOW) pUserWaitFunc();
 }
 
 /**
@@ -252,7 +259,20 @@ void EPD_SSD1606::closeChargePump(void)
   /* Launching the update: Nothing should interrupt this sequence in order
    to avoid display corruption */
   writeCommand(SSD1606_ADPUPDSC);
-  while(digitalRead(_bsy) == LOW);
+}
+
+void EPD_SSD1606::closeChargePump(void(*pUserWaitFunc)(void))
+{
+  /* Write on the Display update control register */
+  writeCommand(SSD1606_DUPCTRL2);
+  
+  /* Disable CP then Disable Clock signal */
+  writeCommand(0x03);
+  
+  /* Launching the update: Nothing should interrupt this sequence in order
+   to avoid display corruption */
+  writeCommand(SSD1606_ADPUPDSC);
+  while(digitalRead(_bsy) == LOW) pUserWaitFunc();
   //delay(2000); // BSY signal acts not like in datasheet! Thats is why delay is here..
 }
 
@@ -271,9 +291,10 @@ void EPD_SSD1606::fillScreen(uint8_t color)
   setAddrWindow(0, 0, 171, 17);
   
   ENABLE_DATA;
-  for(uint16_t i=0; i<SSD1606_SCREEN_SIZE; i++) {
+  uint16_t i= SSD1606_SCREEN_SIZE;
+  do {
     spiwrite(color);
-  }
+  } while(--i);
   DISABLE_DATA;
 }
 
@@ -315,9 +336,9 @@ void EPD_SSD1606::drawPixel(uint8_t color)
  * @param  color: data and color whith 1 pixel
  * @retval None
  */
-void EPD_SSD1606::drawPixel(int16_t x, int16_t y, uint8_t color)
+void EPD_SSD1606::drawPixel(uint8_t x, uint8_t y, uint8_t color)
 {
-  uint8_t sector = y/4;
+  uint8_t sector = y>>2;
   uint8_t pixelPosition = y%4;
   
   setAddrWindow(x, sector, x, sector+1);
@@ -337,15 +358,15 @@ void EPD_SSD1606::drawPixel(int16_t x, int16_t y, uint8_t color)
  * @param  w: lenght of line
  * @retval None
  */
-void EPD_SSD1606::drawFastHLine(int16_t x, int16_t y, int16_t w, uint8_t color)
+void EPD_SSD1606::drawFastHLine(uint8_t x, uint8_t y, uint8_t w, uint8_t color)
 {
   setAddrWindow(x, y, x+w, y);
   
   ENABLE_DATA;
-  for(uint8_t index = 0; index < w; index++) {
+  do {
     /* Prepare the register to write data on the RAM */
     spiwrite(color);
-  }
+  } while(--w);
   DISABLE_DATA;
 }
 
@@ -356,15 +377,15 @@ void EPD_SSD1606::drawFastHLine(int16_t x, int16_t y, int16_t w, uint8_t color)
  * @param  h: lenght of line in sectors of 4 pixel each
  * @retval None
  */
-void EPD_SSD1606::drawFastVLine(int16_t x, int16_t y, int16_t h, uint8_t color)
+void EPD_SSD1606::drawFastVLine(uint8_t x, uint8_t y, uint8_t h, uint8_t color)
 {
   setAddrWindow(x, y, x, y+h);
   
   ENABLE_DATA;
-  for(uint8_t index = 0; index < h; index++) {
+  do {
     /* Prepare the register to write data on the RAM */
     spiwrite(color);
-  }
+  } while(--h);
   DISABLE_DATA;
 }
 
@@ -375,7 +396,7 @@ void EPD_SSD1606::drawFastVLine(int16_t x, int16_t y, int16_t h, uint8_t color)
  * @param  h: lenght of line (0-71)
  * @retval None
  */
-void EPD_SSD1606::drawVLine(int16_t x, int16_t y, int16_t h, uint8_t color)
+void EPD_SSD1606::drawVLine(uint8_t x, uint8_t y, uint8_t h, uint8_t color)
 {
   uint8_t sectors=0;
   uint8_t pixelsLeft=0;
@@ -389,10 +410,10 @@ void EPD_SSD1606::drawVLine(int16_t x, int16_t y, int16_t h, uint8_t color)
   }
 
   ENABLE_DATA;
-  for(uint8_t index = 0; index < sectors; index++) {
+  do {
     /* Prepare the register to write data on the RAM */
     spiwrite(color);
-  }
+  } while(--sectors);
   
   // fill sector whith 1 to 3 pixels
   switch(pixelsLeft) {
@@ -405,6 +426,35 @@ void EPD_SSD1606::drawVLine(int16_t x, int16_t y, int16_t h, uint8_t color)
 }
 
 /**
+ * @brief  Draw horizontal line
+ * @param  x: X position (0-171)
+ * @param  y: Y position (0-71)
+ * @param  w: lenght of line
+ * @retval None
+ */
+void EPD_SSD1606::drawHLine(uint8_t x, uint8_t y, uint8_t w, uint8_t color)
+{
+  uint8_t sector = y>>2;
+  uint8_t pixelPosition = y%4;
+  
+  setAddrWindow(x, sector, x+w, sector+1);
+  
+  switch(pixelPosition) {
+    case 0: color |= 0x3F; break;
+    case 1: color |= 0xCF; break;
+    case 2: color |= 0xF3; break;
+    case 3: color |= 0xFC; break;
+  }
+  
+  ENABLE_DATA;
+  do {
+    /* Prepare the register to write data on the RAM */
+    spiwrite(color);
+  } while(--w);
+  DISABLE_DATA;
+}
+
+/**
  * @brief  Draw non filled rectangle
  * @param  x: X position where line start
  * @param  y: Y position where line start
@@ -412,15 +462,15 @@ void EPD_SSD1606::drawVLine(int16_t x, int16_t y, int16_t h, uint8_t color)
  * @param  h: height
  * @retval None
  */
-void EPD_SSD1606::drawRect(int16_t x, int16_t y, int16_t w, int16_t h, uint8_t color)
+void EPD_SSD1606::drawRect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, uint8_t color)
 {
   /* Draw horizontal lines */
-  drawFastHLine(x, y, w, color);
-  drawFastHLine(x, y + h, w + 1, color);
+  drawHLine(x, y, w, color);
+  drawHLine(x, y + h, w, color);
   
   /* Draw vertical lines */
-  drawFastVLine(x, y, h, color);
-  drawFastVLine(x + w, y , h, color);
+  drawVLine(x, y, h, color);
+  drawVLine(x + w, y , h, color);
 }
 
 /**
@@ -431,7 +481,7 @@ void EPD_SSD1606::drawRect(int16_t x, int16_t y, int16_t w, int16_t h, uint8_t c
  * @param  h: height
  * @retval None
  */
-void EPD_SSD1606::fillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint8_t color)
+void EPD_SSD1606::fillRect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, uint8_t color)
 {
   /* Set the rectangle */
   setAddrWindow(x, y, x + w, y + h);
@@ -439,9 +489,9 @@ void EPD_SSD1606::fillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint8_t c
   uint16_t dataSize = w*(h*4);
   
   ENABLE_DATA;
-  for(int16_t index = 0; index < dataSize; index++) {
+  do {
     spiwrite(color);
-  }
+  } while(--dataSize);
   DISABLE_DATA;
 }
 
@@ -468,7 +518,7 @@ void EPD_SSD1606::setBitDepth(uint8_t depth)
  * @retval None
  */
 #if 0
-void EPD_SSD1606::setAddrWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1)
+void EPD_SSD1606::setAddrWindow(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1)
 {
   writeCommand(SSD1606_RASTXSE); // set RAM x address start/end
   writeData(y0);
@@ -485,7 +535,7 @@ void EPD_SSD1606::setAddrWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t 
 }
 #else
 // reque little more ROM space but much more faster
-void EPD_SSD1606::setAddrWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1)
+void EPD_SSD1606::setAddrWindow(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1)
 {
   SET_CS_LOW;
   SET_DC_LOW;  spiwrite(SSD1606_RASTXSE); // set RAM x address start/end
@@ -512,7 +562,7 @@ size_t EPD_SSD1606::write(uint8_t c) {
 #else
   void EPD_SSD1606::write(uint8_t c) {
 #endif
-    uint16_t fontW, fontH;
+    uint8_t fontW, fontH;
     fontW = pFont->Width;
     fontH = pFont->Height;
     
@@ -556,7 +606,7 @@ void EPD_SSD1606::setTextWrap(bool w)
   wrap = w;
 }
   
-void EPD_SSD1606::setCursor(int16_t x, int16_t y)
+void EPD_SSD1606::setCursor(uint8_t x, uint8_t y)
 {
   cursor_x = x;
   cursor_y = y;
@@ -567,9 +617,27 @@ void EPD_SSD1606::setCursor(int16_t x, int16_t y)
  * @param  pFonts: specifies the layer font to be used.
  * @retval None
  */
-void EPD_SSD1606::setFont(font_t *pFonts)
+void EPD_SSD1606::setFont(const font_t *pFonts)
 {
   pFont = pFonts;
+}
+  
+void EPD_SSD1606::printAt(uint8_t x, uint8_t y, const char *str)
+{
+  setCursor(x, y);
+  print(str);
+}
+
+void EPD_SSD1606::printAt(uint8_t x, uint8_t y, const String &str)
+{
+  setCursor(x, y);
+  print(str);
+}
+
+void EPD_SSD1606::printAt(uint8_t x, uint8_t y, const __FlashStringHelper *str)
+{
+  setCursor(x, y);
+  print(str);
 }
 
 /**
@@ -579,19 +647,19 @@ void EPD_SSD1606::setFont(font_t *pFonts)
  * @param  c:    character ascii code, must be between 0x20 and 0x7E.
  * @retval None
  */
-void EPD_SSD1606::drawChar(uint16_t Xpos, uint16_t Ypos, uint8_t c)
+void EPD_SSD1606::drawChar(uint8_t Xpos, uint8_t Ypos, uint8_t c)
 {
-  uint16_t height = pFont->Height;
-  uint16_t width = pFont->Width;
-  int16_t data_length = height * width;
+  uint8_t height = pFont->Height;
+  uint8_t width = pFont->Width;
+  uint16_t data_length = height * width;
   const uint8_t *pChar = &pFont->table[(c-32) * data_length]; // -32 made to fit range
   
   setAddrWindow(Xpos, Ypos, (Xpos + width - 1), (Ypos + height - 1));
   
   ENABLE_DATA;
-  while(data_length--) {
+  do {
     spiwrite(pgm_read_byte(pChar++));
-  }
+  } while(--data_length);
   DISABLE_DATA;
 }
 
@@ -607,14 +675,14 @@ void EPD_SSD1606::drawChar(uint16_t Xpos, uint16_t Ypos, uint8_t c)
  *            @arg  ALIGN_LEFT
  * @retval None
  */
-void EPD_SSD1606::displayStringAt(uint16_t Xpos, uint16_t Ypos, uint8_t *text, textAlign_t mode)
+void EPD_SSD1606::displayStringAt(uint8_t Xpos, uint8_t Ypos, uint8_t *text, textAlign_t mode)
 {
-  uint16_t refcolumn = 1, i = 0;
+  uint8_t refcolumn = 1, i = 0;
   uint32_t size = 0, xsize = 0;
   uint8_t  *ptr = text;
   
   /* Get the text size */
-  while (*ptr++) size ++ ;
+  while(*ptr++) ++size;
   
   /* Characters number per line */
   xsize = (width()/pFont->Width);
@@ -623,7 +691,7 @@ void EPD_SSD1606::displayStringAt(uint16_t Xpos, uint16_t Ypos, uint8_t *text, t
   {
     case ALIGN_CENTER:
     {
-      refcolumn = Xpos + ((xsize - size)* pFont->Width) / 2;
+      refcolumn = Xpos + (((xsize - size)* pFont->Width) >> 1);
       break;
     }
     case ALIGN_LEFT:
@@ -651,8 +719,8 @@ void EPD_SSD1606::displayStringAt(uint16_t Xpos, uint16_t Ypos, uint8_t *text, t
     /* Decrement the column position by 16 */
     refcolumn += pFont->Width;
     /* Point on the next character */
-    text++;
-    i++;
+    ++text;
+    ++i;
   }
 }
 
@@ -667,11 +735,10 @@ void EPD_SSD1606::displayStringAt(uint16_t Xpos, uint16_t Ypos, uint8_t *text, t
  * @param  ptr: Pointer to string to display on EPD
  * @retval None
  */
-void EPD_SSD1606::displayStringAtLine(uint16_t Line, uint8_t *ptr)
+void EPD_SSD1606::displayStringAtLine(uint8_t Line, uint8_t *ptr)
 {
   displayStringAt(0, LINE(Line), ptr, ALIGN_LEFT);
 }
-
 // ----------------------------------------------------------------------------//
 // ----------------------------------------------------------------------------//
 /**
@@ -684,7 +751,7 @@ void EPD_SSD1606::displayStringAtLine(uint16_t Line, uint8_t *ptr)
  * @param  Ysize: Image Y size in the EPD
  * @retval None
  */
-void EPD_SSD1606::drawImageInt(uint16_t Xpos, uint16_t Ypos, uint16_t Xsize, uint16_t Ysize, uint8_t *pData)
+void EPD_SSD1606::drawImageInt(uint8_t Xpos, uint8_t Ypos, uint8_t Xsize, uint8_t Ysize, uint8_t *pData)
 {
   uint32_t i, j = 0;
   uint8_t pixels_4 = 0;
@@ -839,7 +906,7 @@ void EPD_SSD1606::drawImageInt(uint16_t Xpos, uint16_t Ypos, uint16_t Xsize, uin
  * @param  pData: Pointer to the Image address
  * @retval None
  */
-void EPD_SSD1606::drawImage(uint16_t Xpos, uint16_t Ypos, uint16_t Xsize, uint16_t Ysize, uint8_t *pData)
+void EPD_SSD1606::drawImage(uint8_t Xpos, uint8_t Ypos, uint8_t Xsize, uint8_t Ysize, uint8_t *pData)
 {
   /* Set display window */
   setAddrWindow(Xpos, Ypos, (Xpos+Ysize-1), (Ypos+(Xsize/4)-1));
@@ -948,4 +1015,3 @@ void EPD_SSD1606::commandList(const uint8_t *addr)
   }
   DISABLE_DATA;
 }
-

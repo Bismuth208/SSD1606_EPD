@@ -22,6 +22,12 @@
 #include <SPI.h>
 #include <ssd1606.h>
 
+#define E_CS   6  // CS ~ D6
+#define E_DC   5  // D/C ~ D5
+#define E_BSY  7  // BUSY ~ D7
+#define E_RST  2  // RST ~ D2
+#define E_BS   8  // BS ~ D8
+
 /*
 MOSI ~ D11
 MISO ~ D12
@@ -32,8 +38,8 @@ EPD_SSD1606 Eink(E_CS, E_DC, E_BSY, E_RST);
 void setup()
 {
   // set BS to LOW for 4 line SPI (line can be attached to GND)
-  pinMode(8,OUTPUT);
-  digitalWrite(8, LOW);
+  pinMode(E_BS, OUTPUT);
+  digitalWrite(E_BS, LOW);
   
   Eink.begin();
   Eink.fillScreen(COLOR_WHITE); // clear the screen

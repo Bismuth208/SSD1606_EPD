@@ -2104,7 +2104,7 @@ const uint8_t font14x20_Table[] PROGMEM =
 };
 
 
-font_t font14x20 = {
+const font_t font14x20 = {
   font14x20_Table,
   14, /* Width */    // (14 lines)
   5, /* Height */     // (5 bytes/20pixels)

@@ -35,10 +35,10 @@ typedef struct {
   uint16_t Height;
 } font_t;
 
-extern font_t font14x20;
-extern font_t font11x16;
-extern font_t font7x12;
-extern font_t font5x8;
+extern const font_t font14x20;
+extern const font_t font11x16;
+extern const font_t font7x12;
+extern const font_t font5x8;
 
 #define GET_FONT()  pFont
    
